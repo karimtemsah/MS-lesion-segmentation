@@ -84,17 +84,19 @@ class MSSEG2008(object):
           continue # We dont need to crop from testing images
 
         for pr, protocol in enumerate(MSSEG2008.PROTOCOL_MAPPINGS):
+          if self.options.numSamples > 0 and len(_images) > self.options.numSamples:
+            break
           if self.options.filterProtocol and protocol not in self.options.filterProtocol:
             continue
 
-          nrrd = patient[protocol]
+          nrrd = NRRD(patient[protocol])
           nrrd.printStats()
           #nrrd.visualize(axis=self.options.axis)
-          nrrd_groundtruth = patient['groundtruth']
+          nrrd_groundtruth = NRRD(patient['groundtruth'])
           nrrd_groundtruth.printStats()
 
           # In-place normalize the loaded volume
-          nrrd.normalize(method=options.normalizationMethod, lowerpercentile=0, upperpercentile=99.8)
+          nrrd.normalize(method=options.normalizationMethod, lowerpercentile=0, upperpercentile=98.0)
 
           # Iterate over all slices and collect them
           for s in xrange(0, nrrd.numSlicesAlongAxis(self.options.axis)):
@@ -109,6 +111,9 @@ class MSSEG2008(object):
               slice_seg =scipy.ndimage.interpolation.zoom(slice_seg, float(self.options.sliceResolution) / float(slice_data.shape), mode="nearest")
 
             for angle in self.options.rotations:
+              if self.options.numSamples > 0 and len(_images) > self.options.numSamples:
+                break
+
               if angle != 0:
                 slice_data_rotated = scipy.ndimage.interpolation.rotate(slice_data, angle, reshape=False)
                 slice_seg_rotated = scipy.ndimage.interpolation.rotate(slice_seg, angle, reshape=False, mode='nearest')
@@ -124,8 +129,11 @@ class MSSEG2008(object):
                   ry = numpy.random.randint(0, high=(slice_data_rotated.shape[0] - self.options.cropHeight),
                                          size=self.options.numRandomCropsPerSlice)
                   for r in range(self.options.numRandomCropsPerSlice):
+                    if self.options.numSamples > 0 and len(_images) > self.options.numSamples:
+                      break
+
                     slice_data_cropped = crop(slice_data_rotated, ry[r], rx[r], self.options.cropHeight, self.options.cropWidth)
-                    slice_seg_cropped = crop(slice_data_rotated, ry[r], rx[r], self.options.cropHeight, self.options.cropWidth)
+                    slice_seg_cropped = crop(slice_seg_rotated, ry[r], rx[r], self.options.cropHeight, self.options.cropWidth)
 
                     if self.options.onlyPatchesWithLesions and numpy.max(slice_seg_cropped) == 0: # This means there is no lesion inside this patch
                       continue
@@ -179,13 +187,12 @@ class MSSEG2008(object):
       numLoadedVols = 0
       for pr, protocol in enumerate(MSSEG2008.PROTOCOL_MAPPINGS):
         try:
-          patient[protocol] = NRRD(
-            os.path.join(self.dir(), self.options.folderTrain, pname, pname + '_' + protocol + '.nhdr'))
+          patient[protocol] = os.path.join(self.dir(), self.options.folderTrain, pname, pname + '_' + protocol + '.nhdr')
           numLoadedVols += 1
         except:
           print('MSSEG2008: Failed to open file ' + pname + '_' + protocol + '.nhdr')
       try:
-        patient['groundtruth'] = NRRD(os.path.join(self.dir(), self.options.folderTrain, pname, pname + '_lesion.nhdr'))
+        patient['groundtruth'] = os.path.join(self.dir(), self.options.folderTrain, pname, pname + '_lesion.nhdr')
       except:
         print('MSSEG2008: Failed to open file ' + pname + '_lesion.nhdr')
 
@@ -209,8 +216,7 @@ class MSSEG2008(object):
       numLoadedVols = 0
       for pr, protocol in enumerate(MSSEG2008.PROTOCOL_MAPPINGS):
         try:
-          patient[protocol] = NRRD(
-            os.path.join(self.dir(), self.options.folderTest, pname, pname + '_' + protocol + '.nhdr'))
+          patient[protocol] = os.path.join(self.dir(), self.options.folderTest, pname, pname + '_' + protocol + '.nhdr')
           numLoadedVols += 1
         except:
           print('MSSEG2008: Failed to open file ' + pname + '_' + protocol + '.nhdr')
@@ -293,10 +299,15 @@ class MSSEG2008(object):
     return self.options.dir
 
   def visualize(self, pause=1):
-    images_tmp, _, _ = self.next_batch(10)
+    f, (ax1, ax2) = matplotlib.pyplot.subplots(1, 2)
+    images_tmp, labels_tmp, _ = self.next_batch(10)
     for i in range(images_tmp.shape[0]):
       img = numpy.squeeze(images_tmp[i])
-      plt = matplotlib.pyplot.imshow(img)
+      lbl = numpy.squeeze(labels_tmp[i])
+      ax1.imshow(img)
+      ax1.set_title('Patch')
+      ax2.imshow(lbl)
+      ax2.set_title('Groundtruth')
       matplotlib.pyplot.pause(pause)
 
   def printStats(self):
