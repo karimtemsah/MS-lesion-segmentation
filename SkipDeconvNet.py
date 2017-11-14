@@ -10,14 +10,26 @@ import numpy as np
 import tensorflow as tf
 import cv2
 
+#Initialize weights for the network
+#@param filter_size : Size of the convolutional filter
+#@param in_channels : Number of channels of the input image
+#@param out_channels : Number of channels of the output image
 def create_weights(filter_size, in_channels, out_channels):
 	w = tf.truncated_normal([filter_size, filter_size, in_channels, out_channels], stddev=0.05)
 	return tf.Variable(w)
 
+#Initialize biases for the network
+#@param num_filters : Num of convolutional filters
 def create_bias(num_filters):
 	b = tf.constant(0.05, shape=[num_filters])
 	return tf.Variable(b)
 
+#Convolutional net, batch normalisation, and ReLU
+#@param input : Input tensor to the CNN
+#@param W : Weights of the convolutional layer
+#@param b : Biases of the input net
+#@param strides : The stride of the convolution in each axis
+#@param padding : The type of padding implemented
 def create_conv_layer(input, W, b, strides=[1, 1, 1, 1], padding='SAME'):
 	conv = tf.nn.conv2d(input, W, strides, padding)
 	batch_mean,batch_var = tf.nn.moments(conv, axes = [0])
@@ -26,9 +38,15 @@ def create_conv_layer(input, W, b, strides=[1, 1, 1, 1], padding='SAME'):
 	bn_conv = tf.nn.batch_normalization(conv, batch_mean, batch_var, offset, scale, np.finfo(float).eps)
 	return tf.nn.relu(conv + b)
 
+#Implements max pooling
+#@param input : Input tensor to the max pooling layer
 def create_maxpool_layer(input):
 	return(tf.nn.max_pool_with_argmax(input, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME'))
 
+#Implements unpooling
+#@param input : Input tensor to the unpooling layer
+#@param index : Indices of the max positions
+#@param ksize : Size of unpooling kernel
 def create_unpool_layer(input, index, ksize=[1, 2, 2, 1]):
 	input_shape = input.get_shape().as_list()
 	output_shape = (input_shape[0], input_shape[1] * ksize[1], input_shape[2] * ksize[2], input_shape[3])
@@ -45,12 +63,17 @@ def create_unpool_layer(input, index, ksize=[1, 2, 2, 1]):
 	output = tf.scatter_nd(ind, uppool, shape=flat_output_shape)
 	return tf.reshape(output, output_shape)
 
+#Model which implements SkipDeconvNet
+#@param input : Image to be put through the net
+#@param scope : Scope of the model
+#@param reuse : If the model can be reused
 def model(input, scope="SkipDeconvNet", reuse=True):
 
 	N = 5
 
 	with tf.name_scope(scope):
 
+		#Model architecture
 	    conv_1 = create_conv_layer(input, create_weights(7,1,64), create_bias(64)) 
 	    maxpool_1, max_pool_1_index = create_maxpool_layer(conv_1) 
 
@@ -82,7 +105,7 @@ def model(input, scope="SkipDeconvNet", reuse=True):
 	    softmax = tf.nn.softmax(classifier_layer)
 	    print(softmax.shape)
 
-
+#Main function to load image
 im = cv2.imread('liver.jpeg', cv2.IMREAD_GRAYSCALE)
 im = cv2.resize(im,(256,256))
 im = np.array(im, dtype=np.float32)
