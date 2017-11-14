@@ -8,6 +8,7 @@ import os
 import matplotlib.pyplot
 import numpy as np
 import tensorflow as tf
+import cv2
 
 def create_weights(filter_size, in_channels, out_channels):
 	w = tf.truncated_normal([filter_size, filter_size, in_channels, out_channels], stddev=0.05)
@@ -19,9 +20,11 @@ def create_bias(num_filters):
 
 def create_conv_layer(input, W, b, strides=[1, 1, 1, 1], padding='SAME'):
 	conv = tf.nn.conv2d(input, W, strides, padding)
-	batch_mean,batch_var = tf.nn.moments(conv)
-	bn_conv = tf.nn.batch_normalization(conv, batch_mean, batch_var)
-	return tf.nn.relu(bn_conv + b)
+	batch_mean,batch_var = tf.nn.moments(conv, axes = [0])
+	scale = tf.Variable(tf.ones(conv.shape))
+	offset = tf.Variable(tf.zeros(conv.shape))
+	bn_conv = tf.nn.batch_normalization(conv, batch_mean, batch_var, offset, scale, np.finfo(float).eps)
+	return tf.nn.relu(conv + b)
 
 def create_maxpool_layer(input):
 	return(tf.nn.max_pool_with_argmax(input, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME'))
@@ -79,7 +82,13 @@ def model(input, scope="SkipDeconvNet", reuse=True):
 	    softmax = tf.nn.softmax(classifier_layer)
 	    print(softmax.shape)
 
+
+im = cv2.imread('liver.jpeg', cv2.IMREAD_GRAYSCALE)
+im = cv2.resize(im,(256,256))
+im = np.array(im, dtype=np.float32)
+im = np.expand_dims(im, axis = 0)
+im = np.expand_dims(im, axis = 3)
 x = tf.placeholder(tf.float32, shape=(1, 256, 256, 1))
 
-model(x)
+model(im)
 
