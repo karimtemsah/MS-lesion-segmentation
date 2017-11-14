@@ -19,26 +19,12 @@ def create_bias(num_filters):
 
 def create_conv_layer(input, W, b, strides=[1, 1, 1, 1], padding='SAME'):
 	conv = tf.nn.conv2d(input, W, strides, padding)
-	return tf.nn.relu(conv + b)
+	batch_mean,batch_var = tf.nn.moments(conv)
+	bn_conv = tf.nn.batch_normalization(conv, batch_mean, batch_var)
+	return tf.nn.relu(bn_conv + b)
 
 def create_maxpool_layer(input):
 	return(tf.nn.max_pool_with_argmax(input, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME'))
-
-def create_unpool_layer(input, index, ksize=[1, 2, 2, 1]):
-	input_shape = input.get_shape().as_list()
-	output_shape = (input_shape[0], input_shape[1] * ksize[1], input_shape[2] * ksize[2], input_shape[3])
-
-	flat_output_shape = [output_shape[0], output_shape[1] * output_shape[2] * output_shape[3]]
-
-	uppool = tf.reshape(input, [np.prod(input_shape)])
-	batch_range = tf.reshape(tf.range(output_shape[0], dtype=index.dtype), shape=[input_shape[0], 1, 1, 1])
-	b = tf.ones_like(index) * batch_range
-	b = tf.reshape(b, [np.prod(input_shape), 1])
-	ind = tf.reshape(index, [np.prod(input_shape), 1])
-	ind = tf.concat([b, ind], 1)
-
-	output = tf.scatter_nd(ind, uppool, shape=flat_output_shape)
-	return tf.reshape(output, output_shape)
 
 def create_unpool_layer(input, index, ksize=[1, 2, 2, 1]):
 	input_shape = input.get_shape().as_list()
