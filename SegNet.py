@@ -168,8 +168,8 @@ dataset_options.onlyPatchesWithLesions = True
 dataset_options.rotations = range(-5,5)
 dataset_options.partition = {'TRAIN': 0.7, 'VAL': 0.3}
 dataset_options.sliceResolution = None
-dataset_options.cache = False
-dataset_options.numSamples = 10
+dataset_options.cache = True
+dataset_options.numSamples = -1
 dataset_options.addInstanceNoise = False
 dataset_options.axis = 'axial'
 dataset_options.filterProtocol = ['FLAIR']
@@ -197,7 +197,8 @@ curves['validation'] = []
 
 logits, probabilities = model(inputs['data'])
 printNumberOfTrainableParams()
-cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=inputs['labels']))
+onehot_labels = tf.one_hot(inputs['labels'], 2)
+cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=onehot_labels))
 
 correct_prediction = tf.equal(logits, inputs['labels'])
 accuracy_operation = tf.cast(correct_prediction, tf.float32)
@@ -241,7 +242,7 @@ for e in range(config['numEpochs']):
 
     print('Done with epoch %d' % (e))
     visualizeCurves(curves)
-
+"""
 accumulated_predictions = np.array([])
 for i in range(0, numValSamples):
     # Use Matplotlib to visualize the loss on the training and validation set
@@ -258,4 +259,4 @@ for i in range(0, numValSamples):
         accumulated_predictions = np.append(accumulated_predictions, results['accuracy'])
 accuracy = np.mean(accumulated_predictions)
 print(accuracy)
-
+"""
