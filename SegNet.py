@@ -130,6 +130,26 @@ def model(input, scope="SegNet", reuse=True):
         return logits, softmax
 
 
+def loss_calc(logits, labels):
+
+    class_inc_bg = 2
+
+    labels = labels[...,0]
+    class_weights = tf.constant([[10.0/90, 10.0]])
+
+    onehot_labels = tf.one_hot(labels, class_inc_bg)
+    weights = tf.reduce_sum(class_weights * onehot_labels, axis=-1)
+
+    unweighted_losses = tf.nn.softmax_cross_entropy_with_logits(labels=onehot_labels, logits=logits)
+
+    weighted_losses = unweighted_losses * weights
+
+    loss = tf.reduce_mean(weighted_losses)
+
+    tf.summary.scalar('loss', loss)
+    return loss
+
+
 def show_all_variables():
     model_vars = tf.trainable_variables()
     slim.model_analyzer.analyze_vars(model_vars, print_info=True)
@@ -217,17 +237,17 @@ curves['validation'] = []
 logits, probabilities = model(inputs['data'])
 printNumberOfTrainableParams()
 show_all_variables()
-onehot_labels = tf.one_hot(inputs['labels'], 2)
-cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=onehot_labels))
-
+#onehot_labels = tf.one_hot(inputs['labels'], 2)
+#cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=onehot_labels))
+cross_entropy = loss_calc(logits, inputs['labels'])
 #correct_prediction = tf.equal(logits, inputs['labels'])
 #accuracy_operation = tf.cast(correct_prediction, tf.float32)
 
 train_step = tf.train.GradientDescentOptimizer(config['learningrate']).minimize(cross_entropy)
 
-sess = tf.InteractiveSession()
-tf.global_variables_initializer().run()
-
+#sess = tf.InteractiveSession()
+#tf.global_variables_initializer().run()
+"""
 numTrainSamples = dataset.numBatches(config['batchsize'], set='TRAIN')
 numValSamples = dataset.numBatches(config['batchsize'], set='VAL')
 numTestSamples = dataset.numBatches(config['batchsize'], set='TEST')
@@ -267,6 +287,7 @@ for e in range(config['numEpochs']):
     print("VAL: ", avg_loss_in_current_epoch)
     print('Done with epoch %d' % (e))
     visualizeCurves(curves)
+"""
 """
 accumulated_predictions = np.array([])
 for i in range(0, numValSamples):
