@@ -10,29 +10,42 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from MSSEG2008 import *
 
-
+"""
 def conv_layer(input, filters, kernel_size=3):
     return tf.layers.conv2d(
-            inputs = input,
-            filters = filters,
-            kernel_size = [kernel_size, kernel_size],
-            padding = "same",
-            activation = tf.nn.relu
+            inputs=input,
+            filters=filters,
+            kernel_size=[kernel_size, kernel_size],
+            padding="same",
+            activation=tf.nn.relu
             )
+"""
 
 
-def deconv_layer(input,filters):
-    return tf.layers.conv2d(
-            inputs = input,
-            filters = filters,
-            kernel_size = [3,3],
-            padding = "same",
-            use_bias=False
-            )
+def selu(x):
+    alpha = 1.6732632423543772848170429916717
+    scale = 1.0507009873554804934193349852946
+    return scale*tf.where(x >= 0.0, x, alpha*tf.nn.elu(x))
+
+
+def conv_layer(net, filters, kernel_size=[3,3], activation=True):
+    kernal_units = kernel_size[0] * kernel_size[1] * net.shape.as_list()[-1]
+    net = tf.layers.conv2d(net, filters, kernel_size,
+                           padding='same',
+                           activation=None,
+                           use_bias=True,
+                           bias_initializer=tf.zeros_initializer(),
+                           kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=np.sqrt(1/kernal_units))
+                           )
+
+    if activation:
+        net = selu(net)
+
+    return net
 
 
 def maxpool_layer(input):
-    return(tf.nn.max_pool_with_argmax(input, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME'))
+    return tf.nn.max_pool_with_argmax(input, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 
 def unpool_layer(input, index, ksize=[1, 2, 2, 1]):
@@ -108,13 +121,14 @@ def model(input, scope="SegNet", reuse=True):
 
         # first layer
         unpool_1 = unpool_layer(deconv_3, indicies_1)
-        deconv_2 = deconv_layer(unpool_1, 64)
+        deconv_2 = conv_layer(unpool_1, 64)
         #deconv_1 = deconv_layer(deconv_2, 64)
 
         # Classification
-        logits = deconv_layer(deconv_2, 2)
+        logits = conv_layer(deconv_2, 2, activation=False)
         softmax = tf.nn.softmax(logits)
         return logits, softmax
+
 
 def show_all_variables():
     model_vars = tf.trainable_variables()
@@ -185,7 +199,7 @@ dataset = MSSEG2008(dataset_options)
 config = {}
 config['batchsize'] = 80
 config['learningrate'] = 0.01
-config['numEpochs'] = 100
+config['numEpochs'] = 10
 
 tf.reset_default_graph()
 
@@ -218,8 +232,9 @@ numTrainSamples = dataset.numBatches(config['batchsize'], set='TRAIN')
 numValSamples = dataset.numBatches(config['batchsize'], set='VAL')
 numTestSamples = dataset.numBatches(config['batchsize'], set='TEST')
 print(numTrainSamples)
+print(numValSamples)
 for e in range(config['numEpochs']):
-    avg_loss_in_current_epoch = 0
+
     for i in range(0, numTrainSamples):
         batch_data, batch_labels, _ = dataset.next_batch(config['batchsize'])
         batch_data = batch_data.reshape((batch_data.shape[0], 128, 128, 1))
@@ -229,6 +244,8 @@ for e in range(config['numEpochs']):
         }
         results = sess.run(fetches, feed_dict={inputs['data']: batch_data, inputs['labels']: batch_labels})
         avg_loss_in_current_epoch += results['loss']
+        if i % 100 == 0:
+            print("...")
     avg_loss_in_current_epoch = avg_loss_in_current_epoch / numTrainSamples
     print("Train: ", avg_loss_in_current_epoch)
     curves['training'] += [avg_loss_in_current_epoch]
@@ -237,6 +254,9 @@ for e in range(config['numEpochs']):
         # Use Matplotlib to visualize the loss on the training and validation set
         batch_data, batch_labels, _ = dataset.next_batch(config['batchsize'], set='VAL')
         batch_data = batch_data.reshape((batch_data.shape[0], 128, 128, 1))
+        batch_labels = batch_labels.reshape((batch_labels.shape[0], 128, 128, 1))
+        print(batch_data.shape)
+        print(batch_labels.shape)
         fetches = {
             'loss': cross_entropy
         }
