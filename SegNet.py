@@ -216,11 +216,11 @@ dataset_options.normalizationMethod = 'standardization'
 
 # Center Crops of healthy control images: training, validation and testing patients
 dataset = MSSEG2008(dataset_options)
+
 config = {}
-config['batchsize'] = 80
+config['batchsize'] = 40
 config['learningrate'] = 0.01
 config['numEpochs'] = 10
-
 tf.reset_default_graph()
 
 # Define placeholders
@@ -245,16 +245,18 @@ cross_entropy = loss_calc(logits, inputs['labels'])
 
 train_step = tf.train.GradientDescentOptimizer(config['learningrate']).minimize(cross_entropy)
 
-#sess = tf.InteractiveSession()
-#tf.global_variables_initializer().run()
-"""
+sess = tf.InteractiveSession()
+tf.global_variables_initializer().run()
+
 numTrainSamples = dataset.numBatches(config['batchsize'], set='TRAIN')
 numValSamples = dataset.numBatches(config['batchsize'], set='VAL')
 numTestSamples = dataset.numBatches(config['batchsize'], set='TEST')
 print(numTrainSamples)
 print(numValSamples)
-for e in range(config['numEpochs']):
+print(numTestSamples)
 
+for e in range(config['numEpochs']):
+    avg_loss_in_current_epoch = 0
     for i in range(0, numTrainSamples):
         batch_data, batch_labels, _ = dataset.next_batch(config['batchsize'])
         batch_data = batch_data.reshape((batch_data.shape[0], 128, 128, 1))
@@ -287,7 +289,7 @@ for e in range(config['numEpochs']):
     print("VAL: ", avg_loss_in_current_epoch)
     print('Done with epoch %d' % (e))
     visualizeCurves(curves)
-"""
+
 """
 accumulated_predictions = np.array([])
 for i in range(0, numValSamples):
