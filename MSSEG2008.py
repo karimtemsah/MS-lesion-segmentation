@@ -308,7 +308,9 @@ class MSSEG2008(object):
       ax1.set_title('Patch')
       ax2.imshow(lbl)
       ax2.set_title('Groundtruth')
-      matplotlib.pyplot.pause(pause)
+      #matplotlib.pyplot.pause(pause)
+      s = "imagae_{}.png".format(i)
+      matplotlib.pyplot.savefig(s)
 
   def printStats(self):
     print("Dataset Statistics")
