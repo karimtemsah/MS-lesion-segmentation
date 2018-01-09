@@ -23,7 +23,7 @@ dataset_options.cropHeight = 128
 dataset_options.numRandomCropsPerSlice = 20 # Not needed when doing center crops
 dataset_options.onlyPatchesWithLesions = True
 dataset_options.rotations = range(-2,2)
-dataset_options.partition = {'TRAIN': 0.6, 'VAL': 0.4}
+dataset_options.partition = {'TRAIN': 0.75, 'VAL': 0.25}
 dataset_options.sliceResolution = None # We do not need that since we extract crops!
 dataset_options.cache = True
 dataset_options.numSamples = -1
@@ -38,7 +38,7 @@ dataset = MSSEG2008(dataset_options)
 config = {}
 config['batchsize'] = 40
 config['learningrate'] = 0.01
-config['numEpochs'] = 20
+config['numEpochs'] = 40
 tf.reset_default_graph()
 
 # Define placeholders
@@ -64,7 +64,7 @@ train_step = tf.train.GradientDescentOptimizer(config['learningrate']).minimize(
 summary = tf.summary.merge_all()
 sess = tf.InteractiveSession()
 
-train_writer = tf.summary.FileWriter('train', sess.graph)
+train_writer = tf.summary.FileWriter('run2', sess.graph)
 tf.global_variables_initializer().run()
 numTrainSamples = dataset.numBatches(config['batchsize'], set='TRAIN')
 numValSamples = dataset.numBatches(config['batchsize'], set='VAL')
@@ -93,15 +93,13 @@ for e in range(config['numEpochs']):
     curves['training'] += [avg_loss_in_current_epoch]
     train_writer.add_summary(results['summary'], e)
     if e % 5 == 0:
-        saver.save(sess, 'segnet_train_model', global_step=5)
+        saver.save(sess, 'segnet_train_model_2', global_step=5)
     accumulated_predictions = np.array([])
     for i in range(0, numValSamples):
         # Use Matplotlib to visualize the loss on the training and validation set
         batch_data, batch_labels, _ = dataset.next_batch(config['batchsize'], set='VAL')
         batch_data = batch_data.reshape((batch_data.shape[0], 128, 128, 1))
         batch_labels = batch_labels.reshape((batch_labels.shape[0], 128, 128, 1))
-        print(batch_data.shape)
-        print(batch_labels.shape)
         fetches = {
             'loss': cross_entropy,
             'accuracy': accuracy_operation,
