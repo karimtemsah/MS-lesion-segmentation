@@ -10,8 +10,10 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from MSSEG2008 import *
 from model.inference import model
-from model.evaluation import loss_calc, evaluation
+from model.evaluation import loss_calc, evaluation, conf_matrix
 from model.helpers import *
+
+
 
 dataset_options = MSSEG2008.Options()
 dataset_options.debug = True
@@ -38,7 +40,7 @@ dataset = MSSEG2008(dataset_options)
 config = {}
 config['batchsize'] = 40
 config['learningrate'] = 0.01
-config['numEpochs'] = 40
+config['numEpochs'] = 20
 tf.reset_default_graph()
 
 # Define placeholders
@@ -59,12 +61,13 @@ show_all_variables()
 cross_entropy = loss_calc(logits, inputs['labels'])
 #correct_prediction = tf.equal(logits, inputs['labels'])
 accuracy_operation = evaluation(logits, inputs['labels'])
+confusion = conf_matrix(logits, inputs['labels'])
 
 train_step = tf.train.GradientDescentOptimizer(config['learningrate']).minimize(cross_entropy)
 summary = tf.summary.merge_all()
 sess = tf.InteractiveSession()
 
-train_writer = tf.summary.FileWriter('run2', sess.graph)
+train_writer = tf.summary.FileWriter('run3', sess.graph)
 tf.global_variables_initializer().run()
 numTrainSamples = dataset.numBatches(config['batchsize'], set='TRAIN')
 numValSamples = dataset.numBatches(config['batchsize'], set='VAL')
@@ -73,6 +76,7 @@ print(numTrainSamples)
 print(numValSamples)
 #print(numTestSamples)
 saver = tf.train.Saver()
+last_conf = np.array([[0,0], [0,0]])
 for e in range(config['numEpochs']):
     avg_loss_in_current_epoch = 0
     for i in range(0, numTrainSamples):
@@ -93,7 +97,7 @@ for e in range(config['numEpochs']):
     curves['training'] += [avg_loss_in_current_epoch]
     train_writer.add_summary(results['summary'], e)
     if e % 5 == 0:
-        saver.save(sess, 'segnet_train_model_2', global_step=5)
+        saver.save(sess, 'segnet_train_model_3', global_step=5)
     accumulated_predictions = np.array([])
     for i in range(0, numValSamples):
         # Use Matplotlib to visualize the loss on the training and validation set
@@ -103,7 +107,8 @@ for e in range(config['numEpochs']):
         fetches = {
             'loss': cross_entropy,
             'accuracy': accuracy_operation,
-            'summary': summary
+            'summary': summary,
+            'confusion': confusion
         }
 
         results = sess.run(fetches, feed_dict={inputs['data']: batch_data, inputs['labels']: batch_labels})
@@ -118,6 +123,10 @@ for e in range(config['numEpochs']):
     accuracy = np.mean(accumulated_predictions)
     train_writer.add_summary(results['summary'], e)
     print("Accuracy: ", accuracy)
+    temp = results['confusion'] - last_conf
+    np.savetxt("conf_matrix.txt", temp)
+    print("Confusion Matrix: ", results['confusion'] - last_conf)
+    last_conf = results['confusion']
     print('Done with epoch %d' % (e))
     visualizeCurves(curves)
 

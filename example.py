@@ -35,6 +35,7 @@ dataset = MSSEG2008(dataset_options)
 #dataset.visualize()
 
 # Testing next_batch function for train & val
+"""
 batchsize = 40
 numEpochs = 5
 for epoch in xrange(numEpochs):
@@ -76,3 +77,4 @@ for i in indices_of_testing_patients:
     # Threshold the volume
     # Compute metrics between predicted volume and groundtruth
     # Save prediction as a NRRD file again.
+"""

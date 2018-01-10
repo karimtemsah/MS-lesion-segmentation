@@ -332,15 +332,32 @@ class MSSEG2008(object):
 
     def visualize(self, pause=1):
         f, (ax1, ax2) = matplotlib.pyplot.subplots(1, 2)
-        images_tmp, labels_tmp, _ = self.next_batch(10)
+        images_tmp, labels_tmp, _ = self.next_batch(40)
+        result_1 = np.zeros(40)
+        result_0 = np.zeros(40)
+        result_freq = np.zeros(40)
+        result_freq_inv = np.zeros(40)
         for i in range(images_tmp.shape[0]):
             img = numpy.squeeze(images_tmp[i])
             lbl = numpy.squeeze(labels_tmp[i])
+            unique, counts = numpy.unique(lbl, return_counts=True)
+            dd = dict(zip(unique, counts))
+            result_1[i] = dd[1]
+            result_0[i] = dd[0]
+            result_freq = dd[1]/ dd[0]
+            result_freq_inv = dd[0] / dd[1]
+            """
             ax1.imshow(img)
             ax1.set_title('Patch')
             ax2.imshow(lbl)
             ax2.set_title('Groundtruth')
+            """
             #matplotlib.pyplot.pause(pause)
+        print(np.sum(result_1), np.sum(result_0))
+        weight_1 = np.median(result_freq) / (np.sum(result_1) / np.sum(result_0))
+        weight_0 = np.median(result_freq_inv) / (np.sum(result_0) / np.sum(result_1))
+        print(weight_1, weight_0)
+        return weight_1
 
     def printStats(self):
         print("Dataset Statistics")

@@ -115,6 +115,7 @@ def model(input, scope="SegNet", reuse=True):
         #deconv_1 = deconv_layer(deconv_2, 64)
 
         # Classification
+        #dropout = tf.layers.dropout(deconv_2, rate = 0.5)
         logits = conv_layer(deconv_2, 2, activation=False)
         softmax = tf.nn.softmax(logits)
         return logits, softmax
