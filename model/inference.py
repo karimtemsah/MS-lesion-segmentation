@@ -119,3 +119,95 @@ def model(input, scope="SegNet", reuse=True):
         logits = conv_layer(deconv_2, 2, activation=False)
         softmax = tf.nn.softmax(logits)
         return logits, softmax
+
+
+def dropout_layer(input, keep_prob, istraining = False):
+    return tf.layers.dropout(
+            inputs = input,
+            rate= (1-keep_prob),
+            training=istraining
+            )
+
+
+def model_droput(input, scope="SegNet", reuse=True, keep_prob=0.7, is_training=False):
+    # n_labels = 2
+    with tf.name_scope("Seg_dropout"):
+        # first layer
+        conv_1 = conv_layer(input, 64)
+        conv_2 = conv_layer(conv_1, 64)
+        pool_1, indicies_1 = maxpool_layer(conv_2)
+        dropout1 = dropout_layer(pool_1, keep_prob, is_training)
+
+
+
+        # second layer
+        conv_3 = conv_layer(dropout1, 128)
+        conv_4 = conv_layer(conv_3, 128)
+        pool_2, indicies_2 = maxpool_layer(conv_4)
+        dropout2 = dropout_layer(pool_2, keep_prob, is_training)
+
+
+
+        # third layer
+        conv_5 = conv_layer(dropout2, 256)
+        conv_6 = conv_layer(conv_5, 256)
+        conv_7 = conv_layer(conv_6, 256)
+        pool_3, indicies_3 = maxpool_layer(conv_7)
+        dropout3 = dropout_layer(pool_3, keep_prob, is_training)
+
+
+
+        # fourth layer
+        conv_8 = conv_layer(dropout3, 512)
+        conv_9 = conv_layer(conv_8, 512)
+        conv_10 = conv_layer(conv_9, 512)
+        pool_4, indicies_4 = maxpool_layer(conv_10)
+        dropout4 = dropout_layer(pool_4, keep_prob, is_training)
+
+
+
+        # fifth layer
+        conv_11 = conv_layer(dropout4, 512)
+        conv_12 = conv_layer(conv_11, 512)
+        conv_13 = conv_layer(conv_12, 512)
+        pool_5, indicies_5 = maxpool_layer(conv_13)
+        dropout5 = dropout_layer(pool_5, keep_prob, is_training)
+
+
+
+        # the decoding layers
+        # fifth layer
+        unpool_5 = unpool_layer(dropout5, indicies_5)
+        deconv_13 = conv_layer(unpool_5, 512)
+        deconv_12 = conv_layer(deconv_13, 512)
+        deconv_11 = conv_layer(deconv_12, 512)
+
+        # forth layer
+        dropout4_decode = dropout_layer(deconv_11, keep_prob, is_training)
+        unpool_4 = unpool_layer(dropout4_decode, indicies_4)
+        deconv_10 = conv_layer(unpool_4, 512)
+        deconv_9 = conv_layer(deconv_10, 512)
+        deconv_8 = conv_layer(deconv_9, 256)
+
+        # third layer
+        dropout3_decode = dropout_layer(deconv_8, keep_prob, is_training)
+        unpool_3 = unpool_layer(dropout3_decode, indicies_3)
+        deconv_7 = conv_layer(unpool_3, 256)
+        deconv_6 = conv_layer(deconv_7, 256)
+        deconv_5 = conv_layer(deconv_6, 128)
+
+        # second layer
+        dropout2_decode = dropout_layer(deconv_5, keep_prob, is_training)
+        unpool_2 = unpool_layer(dropout2_decode, indicies_2)
+        deconv_4 = conv_layer(unpool_2, 128)
+        deconv_3 = conv_layer(deconv_4, 64)
+
+        # first layer
+        dropout1_decode = dropout_layer(deconv_3, keep_prob, is_training)
+        unpool_1 = unpool_layer(dropout1_decode, indicies_1)
+        deconv_2 = conv_layer(unpool_1, 64)
+        # deconv_1 = deconv_layer(deconv_2, 64)
+
+        # Classification
+        logits = conv_layer(deconv_2, 2, activation=False)
+        return logits

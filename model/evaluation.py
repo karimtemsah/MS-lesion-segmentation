@@ -1,5 +1,6 @@
 
 import tensorflow as tf
+import numpy as np
 
 
 def loss_calc(logits, labels):
@@ -17,10 +18,47 @@ def loss_calc(logits, labels):
     weighted_losses = unweighted_losses * weights
 
     loss = tf.reduce_mean(weighted_losses)
-
     tf.summary.scalar('loss', loss)
     return loss
 
+
+def loss(logits, labels):
+    label_orig = labels
+    logits = tf.reshape(logits, (-1, 2))
+    logits = logits
+    gradient_logits = np.gradient(logits)
+    # consturct one-hot label array
+    label_flat = tf.reshape(labels, (-1, 1))
+
+    # should be [batch ,num_classes]
+    labels = tf.reshape(tf.one_hot(label_flat, depth=2), (-1, 2))
+
+    softmax = tf.nn.softmax(logits)
+
+    size = label_orig.shape[0]*label_orig.shape[1] * label_orig.shape[2]
+
+    class_mask_0 = tf.cast(tf.equal(label_orig, 0), tf.int32)
+    class_mask_1 = tf.cast(tf.equal(label_flat, 1), tf.int32)
+    #class_mask_gradient = tf.cast(tf.greater(np.abs(gradient_logits), 0), tf.int32)
+
+    f0 = tf.reduce_sum(class_mask_0)/size
+    f1 = tf.reduce_sum(class_mask_1)/size
+
+    class_weights = class_mask_0 * (0.5/f0) + class_mask_1 * (0.5/f1)# + 0.5 * class_mask_gradient
+
+    logLoss = tf.reduce_mean(-tf.reduce_sum(class_weights * labels * tf.log(softmax), reduction_indices=[1]))
+
+    return logLoss
+
+    """
+    intersection = tf.reduce_sum(labels * softmax, axis=[1])
+
+    dice =  (2 * intersection)  / (tf.reduce_sum(softmax*softmax,axis=[1]) + tf.reduce_sum(labels*labels, axis=[1]))
+    dice = tf.reduce_mean(dice)
+    loss = logLoss-dice
+    tf.summary.scalar('loss', loss)
+    return loss
+    """
 
 def evaluation(logits, labels):
     labels = labels[..., 0]
